@@ -1,0 +1,1753 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/L.Control.Locate.min.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/filter.css">
+<link rel="stylesheet" href="css/nouislider.min.css">
+        <link rel="stylesheet" href="css/leaflet-control-geocoder.Geocoder.css">
+        <link rel="stylesheet" href="css/leaflet-measure.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title></title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/L.Control.Locate.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet-control-geocoder.Geocoder.js"></script>
+        <script src="js/leaflet-measure.js"></script>
+        <script src="js/proj4.js"></script>
+        <script src="js/proj4leaflet.js"></script>
+        <script src="js/tailDT.js"></script>
+<script src="js/nouislider.min.js"></script>
+<script src="js/wNumb.js"></script>
+        <script src="data/DowntownBrooklynRDS_1.js"></script>
+        <script src="data/NYCDTBKBuildingFootprints_2.js"></script>
+        <script src="data/DowntownBrooklynTenants_3.js"></script>
+        <script>
+        var highlightLayer;
+        function highlightFeature(e) {
+            highlightLayer = e.target;
+
+            if (e.target.feature.geometry.type === 'LineString' || e.target.feature.geometry.type === 'MultiLineString') {
+              highlightLayer.setStyle({
+                color: '#ffff00',
+              });
+            } else {
+              highlightLayer.setStyle({
+                fillColor: '#ffff00',
+                fillOpacity: 1
+              });
+            }
+            highlightLayer.openPopup();
+        }
+        var crs = new L.Proj.CRS('IGNF:WGS84WMSV', '+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs', {
+            resolutions: [2800, 1400, 700, 350, 175, 84, 42, 21, 11.2, 5.6, 2.8, 1.4, 0.7, 0.35, 0.14, 0.07],
+        });
+        var map = L.map('map', {
+            crs: crs,
+            continuousWorld: false,
+            worldCopyJump: false, 
+            zoomControl:true, maxZoom:27, minZoom:1
+        }).fitBounds([[40.69212363470104,-73.98701989194358],[40.69570727011131,-73.98052644274024]]);
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/tomchadwin/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        document.querySelector(".leaflet-popup-pane").addEventListener("load", function(event) {
+          var tagName = event.target.tagName,
+            popup = map._popup;
+          // Also check if flag is already set.
+          if (tagName === "IMG" && popup && !popup._updated) {
+            popup._updated = true; // Set flag to prevent looping.
+            popup.update();
+          }
+        }, true);
+        L.control.locate({locateOptions: {maxZoom: 19}}).addTo(map);
+        var measureControl = new L.Control.Measure({
+            position: 'topleft',
+            primaryLengthUnit: 'meters',
+            secondaryLengthUnit: 'kilometers',
+            primaryAreaUnit: 'sqmeters',
+            secondaryAreaUnit: 'hectares'
+        });
+        measureControl.addTo(map);
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0]
+        .innerHTML = '';
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0]
+        .className += ' fas fa-ruler';
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+        }
+        map.createPane('pane_Basemaps_0');
+        map.getPane('pane_Basemaps_0').style.zIndex = 400;
+        var layer_Basemaps_0 = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+            pane: 'pane_Basemaps_0',
+            opacity: 0.794,
+            attribution: '',
+            minZoom: 1,
+            maxZoom: 27,
+        });
+        layer_Basemaps_0;
+        map.addLayer(layer_Basemaps_0);
+        function pop_DowntownBrooklynRDS_1(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['bike_lane'] !== null ? autolinker.link(feature.properties['bike_lane'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['bike_trafd'] !== null ? autolinker.link(feature.properties['bike_trafd'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['borocode'] !== null ? autolinker.link(feature.properties['borocode'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['date_creat'] !== null ? autolinker.link(feature.properties['date_creat'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['time_creat'] !== null ? autolinker.link(feature.properties['time_creat'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['frm_lvl_co'] !== null ? autolinker.link(feature.properties['frm_lvl_co'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['full_stree'] !== null ? autolinker.link(feature.properties['full_stree'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['l_blkfc_id'] !== null ? autolinker.link(feature.properties['l_blkfc_id'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['l_high_hn'] !== null ? autolinker.link(feature.properties['l_high_hn'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['l_low_hn'] !== null ? autolinker.link(feature.properties['l_low_hn'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['l_zip'] !== null ? autolinker.link(feature.properties['l_zip'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['date_modif'] !== null ? autolinker.link(feature.properties['date_modif'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['time_modif'] !== null ? autolinker.link(feature.properties['time_modif'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['physicalid'] !== null ? autolinker.link(feature.properties['physicalid'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['post_direc'] !== null ? autolinker.link(feature.properties['post_direc'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['post_modif'] !== null ? autolinker.link(feature.properties['post_modif'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['post_type'] !== null ? autolinker.link(feature.properties['post_type'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pre_direct'] !== null ? autolinker.link(feature.properties['pre_direct'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pre_modifi'] !== null ? autolinker.link(feature.properties['pre_modifi'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pre_type'] !== null ? autolinker.link(feature.properties['pre_type'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['r_blkfc_id'] !== null ? autolinker.link(feature.properties['r_blkfc_id'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['r_high_hn'] !== null ? autolinker.link(feature.properties['r_high_hn'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['r_low_hn'] !== null ? autolinker.link(feature.properties['r_low_hn'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['r_zip'] !== null ? autolinker.link(feature.properties['r_zip'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['rw_type'] !== null ? autolinker.link(feature.properties['rw_type'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['segment_ty'] !== null ? autolinker.link(feature.properties['segment_ty'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['shape_leng'] !== null ? autolinker.link(feature.properties['shape_leng'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['snow_pri'] !== null ? autolinker.link(feature.properties['snow_pri'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['st_label'] !== null ? autolinker.link(feature.properties['st_label'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['st_name'] !== null ? autolinker.link(feature.properties['st_name'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['st_width'] !== null ? autolinker.link(feature.properties['st_width'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['status'] !== null ? autolinker.link(feature.properties['status'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['to_lvl_co'] !== null ? autolinker.link(feature.properties['to_lvl_co'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['trafdir'] !== null ? autolinker.link(feature.properties['trafdir'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            layer.bindPopup(popupContent, {maxHeight: 400});
+            var popup = layer.getPopup();
+            var content = popup.getContent();
+            var updatedContent = removeEmptyRowsFromPopupContent(content, feature);
+            popup.setContent(updatedContent);
+        }
+
+        function style_DowntownBrooklynRDS_1_0() {
+            return {
+                pane: 'pane_DowntownBrooklynRDS_1',
+                opacity: 1,
+                color: 'rgba(239,239,239,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 4.0,
+                fillOpacity: 0,
+                interactive: false,
+            }
+        }
+        map.createPane('pane_DowntownBrooklynRDS_1');
+        map.getPane('pane_DowntownBrooklynRDS_1').style.zIndex = 401;
+        map.getPane('pane_DowntownBrooklynRDS_1').style['mix-blend-mode'] = 'normal';
+        var layer_DowntownBrooklynRDS_1 = new L.geoJson(json_DowntownBrooklynRDS_1, {
+            attribution: '',
+            interactive: false,
+            dataVar: 'json_DowntownBrooklynRDS_1',
+            layerName: 'layer_DowntownBrooklynRDS_1',
+            pane: 'pane_DowntownBrooklynRDS_1',
+            onEachFeature: pop_DowntownBrooklynRDS_1,
+            style: style_DowntownBrooklynRDS_1_0,
+        });
+        bounds_group.addLayer(layer_DowntownBrooklynRDS_1);
+        map.addLayer(layer_DowntownBrooklynRDS_1);
+        function pop_NYCDTBKBuildingFootprints_2(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['FID'] !== null ? autolinker.link(feature.properties['FID'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            layer.bindPopup(popupContent, {maxHeight: 400});
+            var popup = layer.getPopup();
+            var content = popup.getContent();
+            var updatedContent = removeEmptyRowsFromPopupContent(content, feature);
+            popup.setContent(updatedContent);
+        }
+
+        function style_NYCDTBKBuildingFootprints_2_0() {
+            return {
+                pane: 'pane_NYCDTBKBuildingFootprints_2',
+                opacity: 1,
+                color: 'rgba(247,247,247,0.75)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(0,0,0,0.75)',
+                interactive: false,
+            }
+        }
+        map.createPane('pane_NYCDTBKBuildingFootprints_2');
+        map.getPane('pane_NYCDTBKBuildingFootprints_2').style.zIndex = 402;
+        map.getPane('pane_NYCDTBKBuildingFootprints_2').style['mix-blend-mode'] = 'normal';
+        var layer_NYCDTBKBuildingFootprints_2 = new L.geoJson(json_NYCDTBKBuildingFootprints_2, {
+            attribution: '',
+            interactive: false,
+            dataVar: 'json_NYCDTBKBuildingFootprints_2',
+            layerName: 'layer_NYCDTBKBuildingFootprints_2',
+            pane: 'pane_NYCDTBKBuildingFootprints_2',
+            onEachFeature: pop_NYCDTBKBuildingFootprints_2,
+            style: style_NYCDTBKBuildingFootprints_2_0,
+        });
+        bounds_group.addLayer(layer_NYCDTBKBuildingFootprints_2);
+        map.addLayer(layer_NYCDTBKBuildingFootprints_2);
+        function pop_DowntownBrooklynTenants_3(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td class="visible-with-data" id="original_Tenant"colspan="2"><strong>original_Tenant</strong><br />' + (feature.properties['original_Tenant'] !== null ? autolinker.link(feature.properties['original_Tenant'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="original_Building Name"colspan="2"><strong>original_Building Name</strong><br />' + (feature.properties['original_Building Name'] !== null ? autolinker.link(feature.properties['original_Building Name'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="original_Sub-Market"colspan="2"><strong>original_Sub-Market</strong><br />' + (feature.properties['original_Sub-Market'] !== null ? autolinker.link(feature.properties['original_Sub-Market'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="original_2-Digit NAICS"colspan="2"><strong>original_2-Digit NAICS</strong><br />' + (feature.properties['original_2-Digit NAICS'] !== null ? autolinker.link(feature.properties['original_2-Digit NAICS'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="original_Key Sub-Sector"colspan="2"><strong>original_Key Sub-Sector</strong><br />' + (feature.properties['original_Key Sub-Sector'] !== null ? autolinker.link(feature.properties['original_Key Sub-Sector'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">original_SF</th>\
+                        <td>' + (feature.properties['original_SF'] !== null ? autolinker.link(feature.properties['original_SF'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="original_SF Source"colspan="2"><strong>original_SF Source</strong><br />' + (feature.properties['original_SF Source'] !== null ? autolinker.link(feature.properties['original_SF Source'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            layer.bindPopup(popupContent, {maxHeight: 400});
+            var popup = layer.getPopup();
+            var content = popup.getContent();
+            var updatedContent = removeEmptyRowsFromPopupContent(content, feature);
+            popup.setContent(updatedContent);
+        }
+
+        function style_DowntownBrooklynTenants_3_0(feature) {
+            switch(String(feature.properties['original_2-Digit NAICS'])) {
+                case 'Accommodation and Food Services':
+                    return {
+                pane: 'pane_DowntownBrooklynTenants_3',
+                radius: 10.0,
+                opacity: 1,
+                color: 'rgba(251,251,251,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(48,18,59,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Administrative and Support Services':
+                    return {
+                pane: 'pane_DowntownBrooklynTenants_3',
+                radius: 10.0,
+                opacity: 1,
+                color: 'rgba(251,251,251,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(63,60,152,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Arts, Entertainment, and Recreation':
+                    return {
+                pane: 'pane_DowntownBrooklynTenants_3',
+                radius: 10.0,
+                opacity: 1,
+                color: 'rgba(251,251,251,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(70,98,216,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Construction':
+                    return {
+                pane: 'pane_DowntownBrooklynTenants_3',
+                radius: 10.0,
+                opacity: 1,
+                color: 'rgba(251,251,251,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(70,134,251,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Educational Services':
+                    return {
+                pane: 'pane_DowntownBrooklynTenants_3',
+                radius: 10.0,
+                opacity: 1,
+                color: 'rgba(251,251,251,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(53,171,248,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Finance and Insurance':
+                    return {
+                pane: 'pane_DowntownBrooklynTenants_3',
+                radius: 10.0,
+                opacity: 1,
+                color: 'rgba(251,251,251,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(30,203,218,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Health Care and Social Assistance':
+                    return {
+                pane: 'pane_DowntownBrooklynTenants_3',
+                radius: 10.0,
+                opacity: 1,
+                color: 'rgba(251,251,251,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(27,229,181,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Information':
+                    return {
+                pane: 'pane_DowntownBrooklynTenants_3',
+                radius: 10.0,
+                opacity: 1,
+                color: 'rgba(251,251,251,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(62,246,140,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Management of Companies and Enterprises':
+                    return {
+                pane: 'pane_DowntownBrooklynTenants_3',
+                radius: 10.0,
+                opacity: 1,
+                color: 'rgba(251,251,251,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(116,254,93,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Manufacturing':
+                    return {
+                pane: 'pane_DowntownBrooklynTenants_3',
+                radius: 10.0,
+                opacity: 1,
+                color: 'rgba(251,251,251,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(164,252,60,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Other Services':
+                    return {
+                pane: 'pane_DowntownBrooklynTenants_3',
+                radius: 10.0,
+                opacity: 1,
+                color: 'rgba(251,251,251,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(201,239,52,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Professional, Scientific, and Technical Services':
+                    return {
+                pane: 'pane_DowntownBrooklynTenants_3',
+                radius: 10.0,
+                opacity: 1,
+                color: 'rgba(251,251,251,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(232,214,57,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Public Administration':
+                    return {
+                pane: 'pane_DowntownBrooklynTenants_3',
+                radius: 10.0,
+                opacity: 1,
+                color: 'rgba(251,251,251,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(251,185,56,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Real Estate and Rental and Leasing':
+                    return {
+                pane: 'pane_DowntownBrooklynTenants_3',
+                radius: 10.0,
+                opacity: 1,
+                color: 'rgba(251,251,251,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(254,147,42,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Retail Trade':
+                    return {
+                pane: 'pane_DowntownBrooklynTenants_3',
+                radius: 10.0,
+                opacity: 1,
+                color: 'rgba(251,251,251,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(245,105,24,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Transportation and Warehousing':
+                    return {
+                pane: 'pane_DowntownBrooklynTenants_3',
+                radius: 10.0,
+                opacity: 1,
+                color: 'rgba(251,251,251,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(227,68,10,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Utilities':
+                    return {
+                pane: 'pane_DowntownBrooklynTenants_3',
+                radius: 10.0,
+                opacity: 1,
+                color: 'rgba(251,251,251,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(201,41,3,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Wholesale Trade':
+                    return {
+                pane: 'pane_DowntownBrooklynTenants_3',
+                radius: 10.0,
+                opacity: 1,
+                color: 'rgba(251,251,251,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(165,19,1,1.0)',
+                interactive: true,
+            }
+                    break;
+                default:
+                    return {
+                pane: 'pane_DowntownBrooklynTenants_3',
+                radius: 10.0,
+                opacity: 1,
+                color: 'rgba(251,251,251,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(122,4,3,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_DowntownBrooklynTenants_3');
+        map.getPane('pane_DowntownBrooklynTenants_3').style.zIndex = 403;
+        map.getPane('pane_DowntownBrooklynTenants_3').style['mix-blend-mode'] = 'normal';
+        var layer_DowntownBrooklynTenants_3 = new L.geoJson(json_DowntownBrooklynTenants_3, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_DowntownBrooklynTenants_3',
+            layerName: 'layer_DowntownBrooklynTenants_3',
+            pane: 'pane_DowntownBrooklynTenants_3',
+            onEachFeature: pop_DowntownBrooklynTenants_3,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_DowntownBrooklynTenants_3_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_DowntownBrooklynTenants_3);
+        map.addLayer(layer_DowntownBrooklynTenants_3);
+        var osmGeocoder = new L.Control.Geocoder({
+            collapsed: true,
+            position: 'topleft',
+            text: 'Search',
+            title: 'Testing'
+        }).addTo(map);
+        document.getElementsByClassName('leaflet-control-geocoder-icon')[0]
+        .className += ' fa fa-search';
+        document.getElementsByClassName('leaflet-control-geocoder-icon')[0]
+        .title += 'Search for a place';
+        var baseMaps = {};
+        var overlaysTree = [
+            {label: 'Downtown Brooklyn Tenants<br /><table><tr><td style="text-align: center;"><img src="legend/DowntownBrooklynTenants_3_AccommodationandFoodServices0.png" /></td><td>Accommodation and Food Services</td></tr><tr><td style="text-align: center;"><img src="legend/DowntownBrooklynTenants_3_AdministrativeandSupportServices1.png" /></td><td>Administrative and Support Services</td></tr><tr><td style="text-align: center;"><img src="legend/DowntownBrooklynTenants_3_ArtsEntertainmentandRecreation2.png" /></td><td>Arts, Entertainment, and Recreation</td></tr><tr><td style="text-align: center;"><img src="legend/DowntownBrooklynTenants_3_Construction3.png" /></td><td>Construction</td></tr><tr><td style="text-align: center;"><img src="legend/DowntownBrooklynTenants_3_EducationalServices4.png" /></td><td>Educational Services</td></tr><tr><td style="text-align: center;"><img src="legend/DowntownBrooklynTenants_3_FinanceandInsurance5.png" /></td><td>Finance and Insurance</td></tr><tr><td style="text-align: center;"><img src="legend/DowntownBrooklynTenants_3_HealthCareandSocialAssistance6.png" /></td><td>Health Care and Social Assistance</td></tr><tr><td style="text-align: center;"><img src="legend/DowntownBrooklynTenants_3_Information7.png" /></td><td>Information</td></tr><tr><td style="text-align: center;"><img src="legend/DowntownBrooklynTenants_3_ManagementofCompaniesandEnterprises8.png" /></td><td>Management of Companies and Enterprises</td></tr><tr><td style="text-align: center;"><img src="legend/DowntownBrooklynTenants_3_Manufacturing9.png" /></td><td>Manufacturing</td></tr><tr><td style="text-align: center;"><img src="legend/DowntownBrooklynTenants_3_OtherServices10.png" /></td><td>Other Services</td></tr><tr><td style="text-align: center;"><img src="legend/DowntownBrooklynTenants_3_ProfessionalScientificandTechnicalServices11.png" /></td><td>Professional, Scientific, and Technical Services</td></tr><tr><td style="text-align: center;"><img src="legend/DowntownBrooklynTenants_3_PublicAdministration12.png" /></td><td>Public Administration</td></tr><tr><td style="text-align: center;"><img src="legend/DowntownBrooklynTenants_3_RealEstateandRentalandLeasing13.png" /></td><td>Real Estate and Rental and Leasing</td></tr><tr><td style="text-align: center;"><img src="legend/DowntownBrooklynTenants_3_RetailTrade14.png" /></td><td>Retail Trade</td></tr><tr><td style="text-align: center;"><img src="legend/DowntownBrooklynTenants_3_TransportationandWarehousing15.png" /></td><td>Transportation and Warehousing</td></tr><tr><td style="text-align: center;"><img src="legend/DowntownBrooklynTenants_3_Utilities16.png" /></td><td>Utilities</td></tr><tr><td style="text-align: center;"><img src="legend/DowntownBrooklynTenants_3_WholesaleTrade17.png" /></td><td>Wholesale Trade</td></tr><tr><td style="text-align: center;"><img src="legend/DowntownBrooklynTenants_3_18.png" /></td><td></td></tr></table>', layer: layer_DowntownBrooklynTenants_3},
+            {label: '<img src="legend/NYCDTBKBuildingFootprints_2.png" /> NYC DT BK Building Footprints', layer: layer_NYCDTBKBuildingFootprints_2},
+            {label: '<img src="legend/DowntownBrooklynRDS_1.png" /> Downtown Brooklyn RDS', layer: layer_DowntownBrooklynRDS_1},
+            {label: "Basemaps", layer: layer_Basemaps_0},]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: true,
+        });
+        lay.addTo(map);
+        map.on("zoomend", function(){
+
+                if (map.hasLayer(layer_DowntownBrooklynRDS_1)) {
+                    if (map.getZoom() <= 19 && map.getZoom() >= 19) {
+                        layer_DowntownBrooklynRDS_1.eachLayer(function (layer) {
+                            layer.openTooltip();
+                        });
+                    } else {
+                        layer_DowntownBrooklynRDS_1.eachLayer(function (layer) {
+                            layer.closeTooltip();
+                        });
+                    }
+                }
+        });
+        setBounds();
+        var i = 0;
+        layer_DowntownBrooklynRDS_1.eachLayer(function(layer) {
+            var context = {
+                feature: layer.feature,
+                variables: {}
+            };
+            layer.bindTooltip((layer.feature.properties['st_name'] !== null?String('<div style="color: #e8718d; font-size: 12pt; font-weight: bold; font-family: \'Open Sans\', sans-serif;">' + layer.feature.properties['st_name']) + '</div>':''), {permanent: true, offset: [-0, -16], className: 'css_DowntownBrooklynRDS_1'});
+            labels.push(layer);
+            totalMarkers += 1;
+              layer.added = true;
+              addLabel(layer, i);
+              i++;
+        });
+                if (map.hasLayer(layer_DowntownBrooklynRDS_1)) {
+                    if (map.getZoom() <= 19 && map.getZoom() >= 19) {
+                        layer_DowntownBrooklynRDS_1.eachLayer(function (layer) {
+                            layer.openTooltip();
+                        });
+                    } else {
+                        layer_DowntownBrooklynRDS_1.eachLayer(function (layer) {
+                            layer.closeTooltip();
+                        });
+                    }
+                }
+        var mapDiv = document.getElementById('map');
+        var row = document.createElement('div');
+        row.className="row";
+        row.id="all";
+        row.style.height = "100%";
+        var col1 = document.createElement('div');
+        col1.className="col9";
+        col1.id = "mapWindow";
+        col1.style.height = "99%";
+        col1.style.width = "80%";
+        col1.style.display = "inline-block";
+        var col2 = document.createElement('div');
+        col2.className="col3";
+        col2.id = "menu";
+        col2.style.display = "inline-block";
+        mapDiv.parentNode.insertBefore(row, mapDiv);
+        document.getElementById("all").appendChild(col1);
+        document.getElementById("all").appendChild(col2);
+        col1.appendChild(mapDiv)
+        var Filters = {"original_SF": "str","original_2-Digit NAICS": "str","original_Tenant": "str","original_Building Name": "str"};
+        function filterFunc() {
+          map.eachLayer(function(lyr){
+          if ("options" in lyr && "dataVar" in lyr["options"]){
+            features = this[lyr["options"]["dataVar"]].features.slice(0);
+            try{
+              for (key in Filters){
+                keyS = key.replace(/[^a-zA-Z0-9_]/g, "")
+                if (Filters[key] == "str" || Filters[key] == "bool"){
+                  var selection = [];
+                  var options = document.getElementById("sel_" + keyS).options
+                  for (var i=0; i < options.length; i++) {
+                    if (options[i].selected) selection.push(options[i].value);
+                  }
+                    try{
+                      if (key in features[0].properties){
+                        for (i = features.length - 1;
+                          i >= 0; --i){
+                          if (selection.indexOf(
+                          features[i].properties[key])<0
+                          && selection.length>0) {
+                          features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                  }
+                }
+                if (Filters[key] == "int"){
+                  sliderVals =  document.getElementById(
+                    "div_" + keyS).noUiSlider.get();
+                  try{
+                    if (key in features[0].properties){
+                    for (i = features.length - 1; i >= 0; --i){
+                      if (parseInt(features[i].properties[key])
+                          < sliderVals[0]
+                          || parseInt(features[i].properties[key])
+                          > sliderVals[1]){
+                            features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                    }
+                  }
+                if (Filters[key] == "real"){
+                  sliderVals =  document.getElementById(
+                    "div_" + keyS).noUiSlider.get();
+                  try{
+                    if (key in features[0].properties){
+                    for (i = features.length - 1; i >= 0; --i){
+                      if (features[i].properties[key]
+                          < sliderVals[0]
+                          || features[i].properties[key]
+                          > sliderVals[1]){
+                            features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                    }
+                  }
+                if (Filters[key] == "date"
+                  || Filters[key] == "datetime"
+                  || Filters[key] == "time"){
+                  try{
+                    if (key in features[0].properties){
+                      HTMLkey = key.replace(/[&\/\\#,+()$~%.'":*?<>{} ]/g, '');
+                      startdate = document.getElementById("dat_" +
+                        HTMLkey + "_date1").value.replace(" ", "T");
+                      enddate = document.getElementById("dat_" +
+                        HTMLkey + "_date2").value.replace(" ", "T");
+                      for (i = features.length - 1; i >= 0; --i){
+                        if (features[i].properties[key] < startdate
+                          || features[i].properties[key] > enddate){
+                          features.splice(i,1);
+                        }
+                      }
+                    }
+                  } catch(err){
+                  }
+                }
+              }
+            } catch(err){
+            }
+          this[lyr["options"]["layerName"]].clearLayers();
+          this[lyr["options"]["layerName"]].addData(features);
+        var i = 0;
+        layer_DowntownBrooklynRDS_1.eachLayer(function(layer) {
+            var context = {
+                feature: layer.feature,
+                variables: {}
+            };
+            layer.bindTooltip((layer.feature.properties['st_name'] !== null?String('<div style="color: #e8718d; font-size: 12pt; font-weight: bold; font-family: \'Open Sans\', sans-serif;">' + layer.feature.properties['st_name']) + '</div>':''), {permanent: true, offset: [-0, -16], className: 'css_DowntownBrooklynRDS_1'});
+            labels.push(layer);
+            totalMarkers += 1;
+              layer.added = true;
+              addLabel(layer, i);
+              i++;
+        });
+          }
+          })
+        }
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_original_SF = document.createElement('div');
+            div_original_SF.id = "div_original_SF";
+            div_original_SF.className= "filterselect";
+            document.getElementById("menu").appendChild(div_original_SF);
+            sel_original_SF = document.createElement('select');
+            sel_original_SF.multiple = true;
+            sel_original_SF.size = 10;
+            sel_original_SF.id = "sel_original_SF";
+            var original_SF_options_str = "<option value='' unselected></option>";
+            sel_original_SF.onchange = function(){filterFunc()};
+            original_SF_options_str  += '<option value="1,330,000">1,330,000</option>';
+            original_SF_options_str  += '<option value="10,000">10,000</option>';
+            original_SF_options_str  += '<option value="10,057">10,057</option>';
+            original_SF_options_str  += '<option value="10,336">10,336</option>';
+            original_SF_options_str  += '<option value="10,500">10,500</option>';
+            original_SF_options_str  += '<option value="100,000">100,000</option>';
+            original_SF_options_str  += '<option value="100,500">100,500</option>';
+            original_SF_options_str  += '<option value="102,622">102,622</option>';
+            original_SF_options_str  += '<option value="107,000">107,000</option>';
+            original_SF_options_str  += '<option value="11,000">11,000</option>';
+            original_SF_options_str  += '<option value="11,070">11,070</option>';
+            original_SF_options_str  += '<option value="11,700">11,700</option>';
+            original_SF_options_str  += '<option value="111,800">111,800</option>';
+            original_SF_options_str  += '<option value="116,000">116,000</option>';
+            original_SF_options_str  += '<option value="118,078">118,078</option>';
+            original_SF_options_str  += '<option value="12,000">12,000</option>';
+            original_SF_options_str  += '<option value="12,204">12,204</option>';
+            original_SF_options_str  += '<option value="13,115">13,115</option>';
+            original_SF_options_str  += '<option value="13,200">13,200</option>';
+            original_SF_options_str  += '<option value="13,400">13,400</option>';
+            original_SF_options_str  += '<option value="138,802">138,802</option>';
+            original_SF_options_str  += '<option value="14,000">14,000</option>';
+            original_SF_options_str  += '<option value="14,100">14,100</option>';
+            original_SF_options_str  += '<option value="14,308">14,308</option>';
+            original_SF_options_str  += '<option value="14,479">14,479</option>';
+            original_SF_options_str  += '<option value="14,694">14,694</option>';
+            original_SF_options_str  += '<option value="15,000">15,000</option>';
+            original_SF_options_str  += '<option value="15,214">15,214</option>';
+            original_SF_options_str  += '<option value="15,238">15,238</option>';
+            original_SF_options_str  += '<option value="15,800">15,800</option>';
+            original_SF_options_str  += '<option value="150,000">150,000</option>';
+            original_SF_options_str  += '<option value="150,456">150,456</option>';
+            original_SF_options_str  += '<option value="16,380">16,380</option>';
+            original_SF_options_str  += '<option value="16,457">16,457</option>';
+            original_SF_options_str  += '<option value="16,852">16,852</option>';
+            original_SF_options_str  += '<option value="16,898">16,898</option>';
+            original_SF_options_str  += '<option value="17,008">17,008</option>';
+            original_SF_options_str  += '<option value="17,015">17,015</option>';
+            original_SF_options_str  += '<option value="17,425">17,425</option>';
+            original_SF_options_str  += '<option value="18,023">18,023</option>';
+            original_SF_options_str  += '<option value="18,800">18,800</option>';
+            original_SF_options_str  += '<option value="18,807">18,807</option>';
+            original_SF_options_str  += '<option value="19,500">19,500</option>';
+            original_SF_options_str  += '<option value="194,346">194,346</option>';
+            original_SF_options_str  += '<option value="2,400">2,400</option>';
+            original_SF_options_str  += '<option value="2,460">2,460</option>';
+            original_SF_options_str  += '<option value="2,470">2,470</option>';
+            original_SF_options_str  += '<option value="2,500">2,500</option>';
+            original_SF_options_str  += '<option value="2,600">2,600</option>';
+            original_SF_options_str  += '<option value="2,632">2,632</option>';
+            original_SF_options_str  += '<option value="2,700">2,700</option>';
+            original_SF_options_str  += '<option value="2,750">2,750</option>';
+            original_SF_options_str  += '<option value="2,795">2,795</option>';
+            original_SF_options_str  += '<option value="2,800">2,800</option>';
+            original_SF_options_str  += '<option value="2,838">2,838</option>';
+            original_SF_options_str  += '<option value="2,850">2,850</option>';
+            original_SF_options_str  += '<option value="20,240">20,240</option>';
+            original_SF_options_str  += '<option value="201,985">201,985</option>';
+            original_SF_options_str  += '<option value="209,000">209,000</option>';
+            original_SF_options_str  += '<option value="21,000">21,000</option>';
+            original_SF_options_str  += '<option value="214,856">214,856</option>';
+            original_SF_options_str  += '<option value="216,000">216,000</option>';
+            original_SF_options_str  += '<option value="22,143">22,143</option>';
+            original_SF_options_str  += '<option value="22,486">22,486</option>';
+            original_SF_options_str  += '<option value="228,503">228,503</option>';
+            original_SF_options_str  += '<option value="23,000">23,000</option>';
+            original_SF_options_str  += '<option value="23,865">23,865</option>';
+            original_SF_options_str  += '<option value="246,723">246,723</option>';
+            original_SF_options_str  += '<option value="25,000">25,000</option>';
+            original_SF_options_str  += '<option value="25,300">25,300</option>';
+            original_SF_options_str  += '<option value="25,451">25,451</option>';
+            original_SF_options_str  += '<option value="250,000">250,000</option>';
+            original_SF_options_str  += '<option value="255,090">255,090</option>';
+            original_SF_options_str  += '<option value="27,000">27,000</option>';
+            original_SF_options_str  += '<option value="276,603">276,603</option>';
+            original_SF_options_str  += '<option value="28,000">28,000</option>';
+            original_SF_options_str  += '<option value="29,000">29,000</option>';
+            original_SF_options_str  += '<option value="292,460">292,460</option>';
+            original_SF_options_str  += '<option value="3,000">3,000</option>';
+            original_SF_options_str  += '<option value="3,150">3,150</option>';
+            original_SF_options_str  += '<option value="3,200">3,200</option>';
+            original_SF_options_str  += '<option value="3,230">3,230</option>';
+            original_SF_options_str  += '<option value="3,288">3,288</option>';
+            original_SF_options_str  += '<option value="3,300">3,300</option>';
+            original_SF_options_str  += '<option value="3,400">3,400</option>';
+            original_SF_options_str  += '<option value="3,420">3,420</option>';
+            original_SF_options_str  += '<option value="3,440">3,440</option>';
+            original_SF_options_str  += '<option value="3,485">3,485</option>';
+            original_SF_options_str  += '<option value="3,500">3,500</option>';
+            original_SF_options_str  += '<option value="3,510">3,510</option>';
+            original_SF_options_str  += '<option value="3,600">3,600</option>';
+            original_SF_options_str  += '<option value="3,608">3,608</option>';
+            original_SF_options_str  += '<option value="3,610">3,610</option>';
+            original_SF_options_str  += '<option value="3,655">3,655</option>';
+            original_SF_options_str  += '<option value="3,705">3,705</option>';
+            original_SF_options_str  += '<option value="3,780">3,780</option>';
+            original_SF_options_str  += '<option value="3,800">3,800</option>';
+            original_SF_options_str  += '<option value="3,870">3,870</option>';
+            original_SF_options_str  += '<option value="3,900">3,900</option>';
+            original_SF_options_str  += '<option value="30,000">30,000</option>';
+            original_SF_options_str  += '<option value="30,250">30,250</option>';
+            original_SF_options_str  += '<option value="30,503">30,503</option>';
+            original_SF_options_str  += '<option value="30,816">30,816</option>';
+            original_SF_options_str  += '<option value="312,500">312,500</option>';
+            original_SF_options_str  += '<option value="32,696">32,696</option>';
+            original_SF_options_str  += '<option value="320,000">320,000</option>';
+            original_SF_options_str  += '<option value="33,285">33,285</option>';
+            original_SF_options_str  += '<option value="35,143">35,143</option>';
+            original_SF_options_str  += '<option value="350,000">350,000</option>';
+            original_SF_options_str  += '<option value="36,197">36,197</option>';
+            original_SF_options_str  += '<option value="37,000">37,000</option>';
+            original_SF_options_str  += '<option value="37,048">37,048</option>';
+            original_SF_options_str  += '<option value="37,459">37,459</option>';
+            original_SF_options_str  += '<option value="37,614">37,614</option>';
+            original_SF_options_str  += '<option value="39,286">39,286</option>';
+            original_SF_options_str  += '<option value="4,000">4,000</option>';
+            original_SF_options_str  += '<option value="4,085">4,085</option>';
+            original_SF_options_str  += '<option value="4,180">4,180</option>';
+            original_SF_options_str  += '<option value="4,200">4,200</option>';
+            original_SF_options_str  += '<option value="4,317">4,317</option>';
+            original_SF_options_str  += '<option value="4,400">4,400</option>';
+            original_SF_options_str  += '<option value="4,410">4,410</option>';
+            original_SF_options_str  += '<option value="4,500">4,500</option>';
+            original_SF_options_str  += '<option value="4,510">4,510</option>';
+            original_SF_options_str  += '<option value="4,515">4,515</option>';
+            original_SF_options_str  += '<option value="4,600">4,600</option>';
+            original_SF_options_str  += '<option value="4,620">4,620</option>';
+            original_SF_options_str  += '<option value="4,691">4,691</option>';
+            original_SF_options_str  += '<option value="4,715">4,715</option>';
+            original_SF_options_str  += '<option value="4,730">4,730</option>';
+            original_SF_options_str  += '<option value="4,750">4,750</option>';
+            original_SF_options_str  += '<option value="4,800">4,800</option>';
+            original_SF_options_str  += '<option value="4,862">4,862</option>';
+            original_SF_options_str  += '<option value="4,950">4,950</option>';
+            original_SF_options_str  += '<option value="4,995">4,995</option>';
+            original_SF_options_str  += '<option value="40,000">40,000</option>';
+            original_SF_options_str  += '<option value="43,195">43,195</option>';
+            original_SF_options_str  += '<option value="43,889">43,889</option>';
+            original_SF_options_str  += '<option value="44,945">44,945</option>';
+            original_SF_options_str  += '<option value="445,000">445,000</option>';
+            original_SF_options_str  += '<option value="45,447">45,447</option>';
+            original_SF_options_str  += '<option value="450,516">450,516</option>';
+            original_SF_options_str  += '<option value="462,952">462,952</option>';
+            original_SF_options_str  += '<option value="471,689">471,689</option>';
+            original_SF_options_str  += '<option value="48,710">48,710</option>';
+            original_SF_options_str  += '<option value="49,500">49,500</option>';
+            original_SF_options_str  += '<option value="5,000">5,000</option>';
+            original_SF_options_str  += '<option value="5,070">5,070</option>';
+            original_SF_options_str  += '<option value="5,100">5,100</option>';
+            original_SF_options_str  += '<option value="5,160">5,160</option>';
+            original_SF_options_str  += '<option value="5,200">5,200</option>';
+            original_SF_options_str  += '<option value="5,250">5,250</option>';
+            original_SF_options_str  += '<option value="5,330">5,330</option>';
+            original_SF_options_str  += '<option value="5,350">5,350</option>';
+            original_SF_options_str  += '<option value="5,400">5,400</option>';
+            original_SF_options_str  += '<option value="5,500">5,500</option>';
+            original_SF_options_str  += '<option value="5,670">5,670</option>';
+            original_SF_options_str  += '<option value="5,700">5,700</option>';
+            original_SF_options_str  += '<option value="5,800">5,800</option>';
+            original_SF_options_str  += '<option value="5,805">5,805</option>';
+            original_SF_options_str  += '<option value="50,000">50,000</option>';
+            original_SF_options_str  += '<option value="50,901">50,901</option>';
+            original_SF_options_str  += '<option value="54,132">54,132</option>';
+            original_SF_options_str  += '<option value="54,464">54,464</option>';
+            original_SF_options_str  += '<option value="57,190">57,190</option>';
+            original_SF_options_str  += '<option value="6,000">6,000</option>';
+            original_SF_options_str  += '<option value="6,080">6,080</option>';
+            original_SF_options_str  += '<option value="6,210">6,210</option>';
+            original_SF_options_str  += '<option value="6,235">6,235</option>';
+            original_SF_options_str  += '<option value="6,300">6,300</option>';
+            original_SF_options_str  += '<option value="6,400">6,400</option>';
+            original_SF_options_str  += '<option value="6,450">6,450</option>';
+            original_SF_options_str  += '<option value="6,800">6,800</option>';
+            original_SF_options_str  += '<option value="6,880">6,880</option>';
+            original_SF_options_str  += '<option value="6,900">6,900</option>';
+            original_SF_options_str  += '<option value="6,970">6,970</option>';
+            original_SF_options_str  += '<option value="60,900">60,900</option>';
+            original_SF_options_str  += '<option value="61,408">61,408</option>';
+            original_SF_options_str  += '<option value="61,539">61,539</option>';
+            original_SF_options_str  += '<option value="61,841">61,841</option>';
+            original_SF_options_str  += '<option value="62,727">62,727</option>';
+            original_SF_options_str  += '<option value="621,817">621,817</option>';
+            original_SF_options_str  += '<option value="63,000">63,000</option>';
+            original_SF_options_str  += '<option value="63,374">63,374</option>';
+            original_SF_options_str  += '<option value="64,000">64,000</option>';
+            original_SF_options_str  += '<option value="64,340">64,340</option>';
+            original_SF_options_str  += '<option value="65,360">65,360</option>';
+            original_SF_options_str  += '<option value="66,245">66,245</option>';
+            original_SF_options_str  += '<option value="69,200">69,200</option>';
+            original_SF_options_str  += '<option value="7,000">7,000</option>';
+            original_SF_options_str  += '<option value="7,059">7,059</option>';
+            original_SF_options_str  += '<option value="7,410">7,410</option>';
+            original_SF_options_str  += '<option value="7,500">7,500</option>';
+            original_SF_options_str  += '<option value="7,790">7,790</option>';
+            original_SF_options_str  += '<option value="7,800">7,800</option>';
+            original_SF_options_str  += '<option value="7,850">7,850</option>';
+            original_SF_options_str  += '<option value="7,872">7,872</option>';
+            original_SF_options_str  += '<option value="7,873">7,873</option>';
+            original_SF_options_str  += '<option value="7,874">7,874</option>';
+            original_SF_options_str  += '<option value="7,937">7,937</option>';
+            original_SF_options_str  += '<option value="75,000">75,000</option>';
+            original_SF_options_str  += '<option value="76,910">76,910</option>';
+            original_SF_options_str  += '<option value="8,000">8,000</option>';
+            original_SF_options_str  += '<option value="8,100">8,100</option>';
+            original_SF_options_str  += '<option value="8,400">8,400</option>';
+            original_SF_options_str  += '<option value="8,550">8,550</option>';
+            original_SF_options_str  += '<option value="8,600">8,600</option>';
+            original_SF_options_str  += '<option value="8,665">8,665</option>';
+            original_SF_options_str  += '<option value="8,775">8,775</option>';
+            original_SF_options_str  += '<option value="9,000">9,000</option>';
+            original_SF_options_str  += '<option value="9,030">9,030</option>';
+            original_SF_options_str  += '<option value="9,240">9,240</option>';
+            original_SF_options_str  += '<option value="9,397">9,397</option>';
+            original_SF_options_str  += '<option value="9,400">9,400</option>';
+            original_SF_options_str  += '<option value="9,500">9,500</option>';
+            original_SF_options_str  += '<option value="9,600">9,600</option>';
+            original_SF_options_str  += '<option value="9,630">9,630</option>';
+            original_SF_options_str  += '<option value="9,860">9,860</option>';
+            original_SF_options_str  += '<option value="9,876">9,876</option>';
+            original_SF_options_str  += '<option value="9,891">9,891</option>';
+            original_SF_options_str  += '<option value="9,900">9,900</option>';
+            original_SF_options_str  += '<option value="9,975">9,975</option>';
+            original_SF_options_str  += '<option value="922,944">922,944</option>';
+            original_SF_options_str  += '<option value="94,000">94,000</option>';
+            original_SF_options_str  += '<option value="942,993">942,993</option>';
+            original_SF_options_str  += '<option value="98,927">98,927</option>';
+            sel_original_SF.innerHTML = original_SF_options_str;
+            div_original_SF.appendChild(sel_original_SF);
+            var lab_original_SF = document.createElement('div');
+            lab_original_SF.innerHTML = 'original_SF';
+            lab_original_SF.className = 'filterlabel';
+            div_original_SF.appendChild(lab_original_SF);
+            var reset_original_SF = document.createElement('div');
+            reset_original_SF.innerHTML = 'clear filter';
+            reset_original_SF.className = 'filterlabel';
+            reset_original_SF.onclick = function() {
+                var options = document.getElementById("sel_original_SF").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_original_SF.appendChild(reset_original_SF);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_original_2DigitNAICS = document.createElement('div');
+            div_original_2DigitNAICS.id = "div_original_2DigitNAICS";
+            div_original_2DigitNAICS.className= "filterselect";
+            document.getElementById("menu").appendChild(div_original_2DigitNAICS);
+            sel_original_2DigitNAICS = document.createElement('select');
+            sel_original_2DigitNAICS.multiple = true;
+            sel_original_2DigitNAICS.size = 10;
+            sel_original_2DigitNAICS.id = "sel_original_2DigitNAICS";
+            var original_2DigitNAICS_options_str = "<option value='' unselected></option>";
+            sel_original_2DigitNAICS.onchange = function(){filterFunc()};
+            original_2DigitNAICS_options_str  += '<option value="Accommodation and Food Services">Accommodation and Food Services</option>';
+            original_2DigitNAICS_options_str  += '<option value="Administrative and Support Services">Administrative and Support Services</option>';
+            original_2DigitNAICS_options_str  += '<option value="Arts, Entertainment, and Recreation">Arts, Entertainment, and Recreation</option>';
+            original_2DigitNAICS_options_str  += '<option value="Construction">Construction</option>';
+            original_2DigitNAICS_options_str  += '<option value="Educational Services">Educational Services</option>';
+            original_2DigitNAICS_options_str  += '<option value="Finance and Insurance">Finance and Insurance</option>';
+            original_2DigitNAICS_options_str  += '<option value="Health Care and Social Assistance">Health Care and Social Assistance</option>';
+            original_2DigitNAICS_options_str  += '<option value="Information">Information</option>';
+            original_2DigitNAICS_options_str  += '<option value="Management of Companies and Enterprises">Management of Companies and Enterprises</option>';
+            original_2DigitNAICS_options_str  += '<option value="Manufacturing">Manufacturing</option>';
+            original_2DigitNAICS_options_str  += '<option value="Other Services">Other Services</option>';
+            original_2DigitNAICS_options_str  += '<option value="Professional, Scientific, and Technical Services">Professional, Scientific, and Technical Services</option>';
+            original_2DigitNAICS_options_str  += '<option value="Public Administration">Public Administration</option>';
+            original_2DigitNAICS_options_str  += '<option value="Real Estate and Rental and Leasing">Real Estate and Rental and Leasing</option>';
+            original_2DigitNAICS_options_str  += '<option value="Retail Trade">Retail Trade</option>';
+            original_2DigitNAICS_options_str  += '<option value="Transportation and Warehousing">Transportation and Warehousing</option>';
+            original_2DigitNAICS_options_str  += '<option value="Utilities">Utilities</option>';
+            original_2DigitNAICS_options_str  += '<option value="Wholesale Trade">Wholesale Trade</option>';
+            sel_original_2DigitNAICS.innerHTML = original_2DigitNAICS_options_str;
+            div_original_2DigitNAICS.appendChild(sel_original_2DigitNAICS);
+            var lab_original_2DigitNAICS = document.createElement('div');
+            lab_original_2DigitNAICS.innerHTML = 'original_2-Digit NAICS';
+            lab_original_2DigitNAICS.className = 'filterlabel';
+            div_original_2DigitNAICS.appendChild(lab_original_2DigitNAICS);
+            var reset_original_2DigitNAICS = document.createElement('div');
+            reset_original_2DigitNAICS.innerHTML = 'clear filter';
+            reset_original_2DigitNAICS.className = 'filterlabel';
+            reset_original_2DigitNAICS.onclick = function() {
+                var options = document.getElementById("sel_original_2DigitNAICS").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_original_2DigitNAICS.appendChild(reset_original_2DigitNAICS);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_original_Tenant = document.createElement('div');
+            div_original_Tenant.id = "div_original_Tenant";
+            div_original_Tenant.className= "filterselect";
+            document.getElementById("menu").appendChild(div_original_Tenant);
+            sel_original_Tenant = document.createElement('select');
+            sel_original_Tenant.multiple = true;
+            sel_original_Tenant.size = 10;
+            sel_original_Tenant.id = "sel_original_Tenant";
+            var original_Tenant_options_str = "<option value='' unselected></option>";
+            sel_original_Tenant.onchange = function(){filterFunc()};
+            original_Tenant_options_str  += '<option value="100 Chicken Productions">100 Chicken Productions</option>';
+            original_Tenant_options_str  += '<option value="1199 Seiu Funds">1199 Seiu Funds</option>';
+            original_Tenant_options_str  += '<option value="330 Jay St Condominium Associate">330 Jay St Condominium Associate</option>';
+            original_Tenant_options_str  += '<option value="388 Athletic Club Llc">388 Athletic Club Llc</option>';
+            original_Tenant_options_str  += '<option value="42 Newsstand">42 Newsstand</option>';
+            original_Tenant_options_str  += '<option value="425 Fulton Rc Llc">425 Fulton Rc Llc</option>';
+            original_Tenant_options_str  += '<option value="510 Fulton Street Inc">510 Fulton Street Inc</option>';
+            original_Tenant_options_str  += '<option value="718 Brooklyn Hotel">718 Brooklyn Hotel</option>';
+            original_Tenant_options_str  += '<option value="99 Cent City Inc">99 Cent City Inc</option>';
+            original_Tenant_options_str  += '<option value="99 Cents Hot Pizza">99 Cents Hot Pizza</option>';
+            original_Tenant_options_str  += '<option value="ADP">ADP</option>';
+            original_Tenant_options_str  += '<option value="AHRC">AHRC</option>';
+            original_Tenant_options_str  += '<option value="ALDO">ALDO</option>';
+            original_Tenant_options_str  += '<option value="AS Realty Management">AS Realty Management</option>';
+            original_Tenant_options_str  += '<option value="Abc Superstore">Abc Superstore</option>';
+            original_Tenant_options_str  += '<option value="Abraham Dayan">Abraham Dayan</option>';
+            original_Tenant_options_str  += '<option value="Abrams Fensterman">Abrams Fensterman</option>';
+            original_Tenant_options_str  += '<option value="Access Careers">Access Careers</option>';
+            original_Tenant_options_str  += '<option value="Accountemps">Accountemps</option>';
+            original_Tenant_options_str  += '<option value="Adidas">Adidas</option>';
+            original_Tenant_options_str  += '<option value="Air Cargo Associates Inc">Air Cargo Associates Inc</option>';
+            original_Tenant_options_str  += '<option value="Ajax Union Inc">Ajax Union Inc</option>';
+            original_Tenant_options_str  += '<option value="Al B&apos;s Bklyn">Al B&apos;s Bklyn</option>';
+            original_Tenant_options_str  += '<option value="Alamo Drafthouse Downtown Brooklyn">Alamo Drafthouse Downtown Brooklyn</option>';
+            original_Tenant_options_str  += '<option value="Albee Square Elementary School">Albee Square Elementary School</option>';
+            original_Tenant_options_str  += '<option value="Alexis Bittar">Alexis Bittar</option>';
+            original_Tenant_options_str  += '<option value="All City Communications">All City Communications</option>';
+            original_Tenant_options_str  += '<option value="All Star Video Games">All Star Video Games</option>';
+            original_Tenant_options_str  += '<option value="AllState">AllState</option>';
+            original_Tenant_options_str  += '<option value="Alma Health">Alma Health</option>';
+            original_Tenant_options_str  += '<option value="Aloft - Brooklyn">Aloft - Brooklyn</option>';
+            original_Tenant_options_str  += '<option value="Alphaprotemps">Alphaprotemps</option>';
+            original_Tenant_options_str  += '<option value="Alpine Beauty Supply">Alpine Beauty Supply</option>';
+            original_Tenant_options_str  += '<option value="Amarachi Inc">Amarachi Inc</option>';
+            original_Tenant_options_str  += '<option value="American Eagle Outfitters">American Eagle Outfitters</option>';
+            original_Tenant_options_str  += '<option value="American Transit Insurance Company">American Transit Insurance Company</option>';
+            original_Tenant_options_str  += '<option value="An Jing">An Jing</option>';
+            original_Tenant_options_str  += '<option value="Angelica Pizza">Angelica Pizza</option>';
+            original_Tenant_options_str  += '<option value="Angelica Pizza & Restaurant">Angelica Pizza & Restaurant</option>';
+            original_Tenant_options_str  += '<option value="Ann Taylor">Ann Taylor</option>';
+            original_Tenant_options_str  += '<option value="Archcare At Home">Archcare At Home</option>';
+            original_Tenant_options_str  += '<option value="Architecture Research Office">Architecture Research Office</option>';
+            original_Tenant_options_str  += '<option value="Arthur Ashe Institute">Arthur Ashe Institute</option>';
+            original_Tenant_options_str  += '<option value="Artisan Collection Inc">Artisan Collection Inc</option>';
+            original_Tenant_options_str  += '<option value="Asa College">Asa College</option>';
+            original_Tenant_options_str  += '<option value="Asa Institute">Asa Institute</option>';
+            original_Tenant_options_str  += '<option value="Asian City">Asian City</option>';
+            original_Tenant_options_str  += '<option value="At&t Store">At&t Store</option>';
+            original_Tenant_options_str  += '<option value="Au Bon Pain">Au Bon Pain</option>';
+            original_Tenant_options_str  += '<option value="Avere">Avere</option>';
+            original_Tenant_options_str  += '<option value="B-Reel Group">B-Reel Group</option>';
+            original_Tenant_options_str  += '<option value="BASIS independent School">BASIS independent School</option>';
+            original_Tenant_options_str  += '<option value="BDS">BDS</option>';
+            original_Tenant_options_str  += '<option value="BHMA Urgent Care">BHMA Urgent Care</option>';
+            original_Tenant_options_str  += '<option value="Bade Stageberg Cox Architects">Bade Stageberg Cox Architects</option>';
+            original_Tenant_options_str  += '<option value="Bajak Luna">Bajak Luna</option>';
+            original_Tenant_options_str  += '<option value="Baltic Street AEH">Baltic Street AEH</option>';
+            original_Tenant_options_str  += '<option value="Bank Of America">Bank Of America</option>';
+            original_Tenant_options_str  += '<option value="Bank Of America Video Banking">Bank Of America Video Banking</option>';
+            original_Tenant_options_str  += '<option value="Barclay School Supplies">Barclay School Supplies</option>';
+            original_Tenant_options_str  += '<option value="Baskin-robbins">Baskin-robbins</option>';
+            original_Tenant_options_str  += '<option value="Beauty 35">Beauty 35</option>';
+            original_Tenant_options_str  += '<option value="Bed-stuy Fish Fry">Bed-stuy Fish Fry</option>';
+            original_Tenant_options_str  += '<option value="Berkeley College - Brooklyn Campus Library">Berkeley College - Brooklyn Campus Library</option>';
+            original_Tenant_options_str  += '<option value="Big Apple Coffee & Bagel Corporation">Big Apple Coffee & Bagel Corporation</option>';
+            original_Tenant_options_str  += '<option value="Big Deals Warehouse Llc">Big Deals Warehouse Llc</option>';
+            original_Tenant_options_str  += '<option value="Bill Goody Aquariums">Bill Goody Aquariums</option>';
+            original_Tenant_options_str  += '<option value="Billy Glenn&apos;s Restaurant">Billy Glenn&apos;s Restaurant</option>';
+            original_Tenant_options_str  += '<option value="Blimpie">Blimpie</option>';
+            original_Tenant_options_str  += '<option value="Blue Cafe">Blue Cafe</option>';
+            original_Tenant_options_str  += '<option value="Bluestone Lane Holdings Llc">Bluestone Lane Holdings Llc</option>';
+            original_Tenant_options_str  += '<option value="Bonchon">Bonchon</option>';
+            original_Tenant_options_str  += '<option value="Bridge Fashion Corporation">Bridge Fashion Corporation</option>';
+            original_Tenant_options_str  += '<option value="Brienzas Academic Advantage">Brienzas Academic Advantage</option>';
+            original_Tenant_options_str  += '<option value="Bright Horizons">Bright Horizons</option>';
+            original_Tenant_options_str  += '<option value="Brooklyn Autism Center">Brooklyn Autism Center</option>';
+            original_Tenant_options_str  += '<option value="Brooklyn Borough Hall">Brooklyn Borough Hall</option>';
+            original_Tenant_options_str  += '<option value="Brooklyn Brew Shop">Brooklyn Brew Shop</option>';
+            original_Tenant_options_str  += '<option value="Brooklyn Brewhouse">Brooklyn Brewhouse</option>';
+            original_Tenant_options_str  += '<option value="Brooklyn Bridge Diner">Brooklyn Bridge Diner</option>';
+            original_Tenant_options_str  += '<option value="Brooklyn Bureau Of Community Service">Brooklyn Bureau Of Community Service</option>';
+            original_Tenant_options_str  += '<option value="Brooklyn Center for Independence of the Disabled">Brooklyn Center for Independence of the Disabled</option>';
+            original_Tenant_options_str  += '<option value="Brooklyn Chamber Of Commerce">Brooklyn Chamber Of Commerce</option>';
+            original_Tenant_options_str  += '<option value="Brooklyn Community">Brooklyn Community</option>';
+            original_Tenant_options_str  += '<option value="Brooklyn Day Habilitation">Brooklyn Day Habilitation</option>';
+            original_Tenant_options_str  += '<option value="Brooklyn Defender Services">Brooklyn Defender Services</option>';
+            original_Tenant_options_str  += '<option value="Brooklyn District Attorney">Brooklyn District Attorney</option>';
+            original_Tenant_options_str  += '<option value="Brooklyn Friends School">Brooklyn Friends School</option>';
+            original_Tenant_options_str  += '<option value="Brooklyn Friends School Family Center">Brooklyn Friends School Family Center</option>';
+            original_Tenant_options_str  += '<option value="Brooklyn Friends School Upper School">Brooklyn Friends School Upper School</option>';
+            original_Tenant_options_str  += '<option value="Brooklyn Health Medical Alliance Primary Care">Brooklyn Health Medical Alliance Primary Care</option>';
+            original_Tenant_options_str  += '<option value="Brooklyn Hospital Center">Brooklyn Hospital Center</option>';
+            original_Tenant_options_str  += '<option value="Brooklyn Kindergarten Society">Brooklyn Kindergarten Society</option>';
+            original_Tenant_options_str  += '<option value="Brooklyn Lab Charter School">Brooklyn Lab Charter School</option>';
+            original_Tenant_options_str  += '<option value="Brooklyn Princess Llc">Brooklyn Princess Llc</option>';
+            original_Tenant_options_str  += '<option value="Brooklyn War Memorial">Brooklyn War Memorial</option>';
+            original_Tenant_options_str  += '<option value="Brother&apos;s Kitchen">Brother&apos;s Kitchen</option>';
+            original_Tenant_options_str  += '<option value="Bunsmith">Bunsmith</option>';
+            original_Tenant_options_str  += '<option value="CUNY City Tech">CUNY City Tech</option>';
+            original_Tenant_options_str  += '<option value="CVS Pharmacy">CVS Pharmacy</option>';
+            original_Tenant_options_str  += '<option value="Cafe Metro">Cafe Metro</option>';
+            original_Tenant_options_str  += '<option value="Callen-Lorde Community Health Center">Callen-Lorde Community Health Center</option>';
+            original_Tenant_options_str  += '<option value="Camba Opportunity House Men&apos;s Shelter">Camba Opportunity House Men&apos;s Shelter</option>';
+            original_Tenant_options_str  += '<option value="Carver Federal Savings Bank">Carver Federal Savings Bank</option>';
+            original_Tenant_options_str  += '<option value="Casella Bagel Coffee Shop">Casella Bagel Coffee Shop</option>';
+            original_Tenant_options_str  += '<option value="Cases">Cases</option>';
+            original_Tenant_options_str  += '<option value="Ccs Plumbing Inc">Ccs Plumbing Inc</option>';
+            original_Tenant_options_str  += '<option value="Center For Alternative Senencing And Employment Service">Center For Alternative Senencing And Employment Service</option>';
+            original_Tenant_options_str  += '<option value="Center For Community Alternatives">Center For Community Alternatives</option>';
+            original_Tenant_options_str  += '<option value="Central Brooklyn Medical Group Empire Center">Central Brooklyn Medical Group Empire Center</option>';
+            original_Tenant_options_str  += '<option value="Cesar&apos;s Gourmet Cafe Hanover">Cesar&apos;s Gourmet Cafe Hanover</option>';
+            original_Tenant_options_str  += '<option value="Champs Sports">Champs Sports</option>';
+            original_Tenant_options_str  += '<option value="Chang Heng Inc">Chang Heng Inc</option>';
+            original_Tenant_options_str  += '<option value="Charles J Taylor">Charles J Taylor</option>';
+            original_Tenant_options_str  += '<option value="Chase">Chase</option>';
+            original_Tenant_options_str  += '<option value="Chipotle">Chipotle</option>';
+            original_Tenant_options_str  += '<option value="Chipotle Mexican Grill">Chipotle Mexican Grill</option>';
+            original_Tenant_options_str  += '<option value="Circa Brewing Company">Circa Brewing Company</option>';
+            original_Tenant_options_str  += '<option value="City Style Nyc">City Style Nyc</option>';
+            original_Tenant_options_str  += '<option value="City Tech Bookstore Cafe">City Tech Bookstore Cafe</option>';
+            original_Tenant_options_str  += '<option value="City of New York">City of New York</option>';
+            original_Tenant_options_str  += '<option value="Ciu Cu Inter Inc">Ciu Cu Inter Inc</option>';
+            original_Tenant_options_str  += '<option value="Classy Beauty Supply">Classy Beauty Supply</option>';
+            original_Tenant_options_str  += '<option value="Clocktower Properties">Clocktower Properties</option>';
+            original_Tenant_options_str  += '<option value="Cng">Cng</option>';
+            original_Tenant_options_str  += '<option value="Coalition for the Homeless: Brooklyn Bureau of Community Service">Coalition for the Homeless: Brooklyn Bureau of Community Service</option>';
+            original_Tenant_options_str  += '<option value="Commercial Properties Exprts">Commercial Properties Exprts</option>';
+            original_Tenant_options_str  += '<option value="Community Counseling & Mediation">Community Counseling & Mediation</option>';
+            original_Tenant_options_str  += '<option value="Con Edison">Con Edison</option>';
+            original_Tenant_options_str  += '<option value="Concord Market Corporation">Concord Market Corporation</option>';
+            original_Tenant_options_str  += '<option value="Concord Village">Concord Village</option>';
+            original_Tenant_options_str  += '<option value="Consumer Powerline">Consumer Powerline</option>';
+            original_Tenant_options_str  += '<option value="Cookie&apos;s Department Stores">Cookie&apos;s Department Stores</option>';
+            original_Tenant_options_str  += '<option value="Court Appointed Special Advocates Casa">Court Appointed Special Advocates Casa</option>';
+            original_Tenant_options_str  += '<option value="Courthouse News Service">Courthouse News Service</option>';
+            original_Tenant_options_str  += '<option value="Cvs Pharmacy">Cvs Pharmacy</option>';
+            original_Tenant_options_str  += '<option value="Daily News Brooklyn Bureau">Daily News Brooklyn Bureau</option>';
+            original_Tenant_options_str  += '<option value="Dallas BBQ">Dallas BBQ</option>';
+            original_Tenant_options_str  += '<option value="DataKind">DataKind</option>';
+            original_Tenant_options_str  += '<option value="Datacubed">Datacubed</option>';
+            original_Tenant_options_str  += '<option value="David Black Agency">David Black Agency</option>';
+            original_Tenant_options_str  += '<option value="Dekalb Market Hall">Dekalb Market Hall</option>';
+            original_Tenant_options_str  += '<option value="Designit">Designit</option>';
+            original_Tenant_options_str  += '<option value="Desoto Cab Company">Desoto Cab Company</option>';
+            original_Tenant_options_str  += '<option value="Deutsche Bank">Deutsche Bank</option>';
+            original_Tenant_options_str  += '<option value="Devocion">Devocion</option>';
+            original_Tenant_options_str  += '<option value="Diagnostic Imaging Group">Diagnostic Imaging Group</option>';
+            original_Tenant_options_str  += '<option value="Dick Bailey Printers">Dick Bailey Printers</option>';
+            original_Tenant_options_str  += '<option value="Dk Fashion">Dk Fashion</option>';
+            original_Tenant_options_str  += '<option value="Doner Kebab Nyc Llc">Doner Kebab Nyc Llc</option>';
+            original_Tenant_options_str  += '<option value="Dorah Publishing Llc">Dorah Publishing Llc</option>';
+            original_Tenant_options_str  += '<option value="Dormitory Authority of the State of New York">Dormitory Authority of the State of New York</option>';
+            original_Tenant_options_str  += '<option value="Downtown Brooklyn Young Adult Borough Center">Downtown Brooklyn Young Adult Borough Center</option>';
+            original_Tenant_options_str  += '<option value="Downtown Express">Downtown Express</option>';
+            original_Tenant_options_str  += '<option value="Downtown Eyecare">Downtown Eyecare</option>';
+            original_Tenant_options_str  += '<option value="Downtown Eyecare & Optical">Downtown Eyecare & Optical</option>';
+            original_Tenant_options_str  += '<option value="Downtown Natural Market">Downtown Natural Market</option>';
+            original_Tenant_options_str  += '<option value="Downtown Warehouse">Downtown Warehouse</option>';
+            original_Tenant_options_str  += '<option value="Dr Jays Ladies">Dr Jays Ladies</option>';
+            original_Tenant_options_str  += '<option value="Dr Jays Store">Dr Jays Store</option>';
+            original_Tenant_options_str  += '<option value="Dunkin&apos;">Dunkin&apos;</option>';
+            original_Tenant_options_str  += '<option value="Edible Arrangements">Edible Arrangements</option>';
+            original_Tenant_options_str  += '<option value="Edwin Gould Services For Children And Families">Edwin Gould Services For Children And Families</option>';
+            original_Tenant_options_str  += '<option value="El Diario/la Prensa">El Diario/la Prensa</option>';
+            original_Tenant_options_str  += '<option value="Emerald Moving & Storage Inc">Emerald Moving & Storage Inc</option>';
+            original_Tenant_options_str  += '<option value="Emergencia Reparacin De Puertas De Garage">Emergencia Reparacin De Puertas De Garage</option>';
+            original_Tenant_options_str  += '<option value="Empire State College Brooklyn Campus">Empire State College Brooklyn Campus</option>';
+            original_Tenant_options_str  += '<option value="Ernest Neuman Studios">Ernest Neuman Studios</option>';
+            original_Tenant_options_str  += '<option value="Essential Acupuncture Wellness Professional Corpor">Essential Acupuncture Wellness Professional Corpor</option>';
+            original_Tenant_options_str  += '<option value="Express Factory Outlet">Express Factory Outlet</option>';
+            original_Tenant_options_str  += '<option value="Eye Crafters">Eye Crafters</option>';
+            original_Tenant_options_str  += '<option value="Eyes And Optic">Eyes And Optic</option>';
+            original_Tenant_options_str  += '<option value="FX Collaborative">FX Collaborative</option>';
+            original_Tenant_options_str  += '<option value="Faith Pharmacy">Faith Pharmacy</option>';
+            original_Tenant_options_str  += '<option value="Fallas Stores">Fallas Stores</option>';
+            original_Tenant_options_str  += '<option value="Fashion Line Jewelry">Fashion Line Jewelry</option>';
+            original_Tenant_options_str  += '<option value="Fedcap">Fedcap</option>';
+            original_Tenant_options_str  += '<option value="Fedcap - Wecare">Fedcap - Wecare</option>';
+            original_Tenant_options_str  += '<option value="Fedcap Rehabilitation Service Inc">Fedcap Rehabilitation Service Inc</option>';
+            original_Tenant_options_str  += '<option value="Fedcap Rehabilitation Services">Fedcap Rehabilitation Services</option>';
+            original_Tenant_options_str  += '<option value="Fegs Brooklyn">Fegs Brooklyn</option>';
+            original_Tenant_options_str  += '<option value="Fellow Barber Nyc City Point">Fellow Barber Nyc City Point</option>';
+            original_Tenant_options_str  += '<option value="First Inc">First Inc</option>';
+            original_Tenant_options_str  += '<option value="Five Guys">Five Guys</option>';
+            original_Tenant_options_str  += '<option value="Five Star Electric">Five Star Electric</option>';
+            original_Tenant_options_str  += '<option value="Flatbush 147">Flatbush 147</option>';
+            original_Tenant_options_str  += '<option value="Flowers">Flowers</option>';
+            original_Tenant_options_str  += '<option value="Footaction">Footaction</option>';
+            original_Tenant_options_str  += '<option value="Fornino">Fornino</option>';
+            original_Tenant_options_str  += '<option value="Forno Rosso Pizzeria">Forno Rosso Pizzeria</option>';
+            original_Tenant_options_str  += '<option value="Fortina Pizza">Fortina Pizza</option>';
+            original_Tenant_options_str  += '<option value="Freelancers Union Inc">Freelancers Union Inc</option>';
+            original_Tenant_options_str  += '<option value="Frener & Reifer">Frener & Reifer</option>';
+            original_Tenant_options_str  += '<option value="Fulton Fabrics Inc">Fulton Fabrics Inc</option>';
+            original_Tenant_options_str  += '<option value="Fulton Street Pwner Llc">Fulton Street Pwner Llc</option>';
+            original_Tenant_options_str  += '<option value="Fulton Wireless Inc">Fulton Wireless Inc</option>';
+            original_Tenant_options_str  += '<option value="Furniture King">Furniture King</option>';
+            original_Tenant_options_str  += '<option value="Fusion Learning">Fusion Learning</option>';
+            original_Tenant_options_str  += '<option value="Gap Outlet">Gap Outlet</option>';
+            original_Tenant_options_str  += '<option value="Gary Tsirelman Law Office">Gary Tsirelman Law Office</option>';
+            original_Tenant_options_str  += '<option value="Gemic">Gemic</option>';
+            original_Tenant_options_str  += '<option value="Giannie S Volcy">Giannie S Volcy</option>';
+            original_Tenant_options_str  += '<option value="Girls For Gender Equity">Girls For Gender Equity</option>';
+            original_Tenant_options_str  += '<option value="Godfather&apos;s Pizza">Godfather&apos;s Pizza</option>';
+            original_Tenant_options_str  += '<option value="Gogo Furniture">Gogo Furniture</option>';
+            original_Tenant_options_str  += '<option value="Golden Fried Dumpling">Golden Fried Dumpling</option>';
+            original_Tenant_options_str  += '<option value="Golden Krust">Golden Krust</option>';
+            original_Tenant_options_str  += '<option value="Goodwill Industries of Greater NYNJ Headquarters">Goodwill Industries of Greater NYNJ Headquarters</option>';
+            original_Tenant_options_str  += '<option value="Goodwill NYNJ Store & Donation Center">Goodwill NYNJ Store & Donation Center</option>';
+            original_Tenant_options_str  += '<option value="Gotenna Inc">Gotenna Inc</option>';
+            original_Tenant_options_str  += '<option value="Govindas Vegetarian Lunch">Govindas Vegetarian Lunch</option>';
+            original_Tenant_options_str  += '<option value="Grant Associates Career Advancement">Grant Associates Career Advancement</option>';
+            original_Tenant_options_str  += '<option value="Greek Xpress">Greek Xpress</option>';
+            original_Tenant_options_str  += '<option value="Greene&apos;s Baby Clothes">Greene&apos;s Baby Clothes</option>';
+            original_Tenant_options_str  += '<option value="Hair Shop">Hair Shop</option>';
+            original_Tenant_options_str  += '<option value="Hale">Hale</option>';
+            original_Tenant_options_str  += '<option value="Hale And Hearty Soups">Hale And Hearty Soups</option>';
+            original_Tenant_options_str  += '<option value="Hampton Inn - Brooklyn">Hampton Inn - Brooklyn</option>';
+            original_Tenant_options_str  += '<option value="Han Dynasty">Han Dynasty</option>';
+            original_Tenant_options_str  += '<option value="Hanson Place Dental Associates">Hanson Place Dental Associates</option>';
+            original_Tenant_options_str  += '<option value="Harlowe Studios And Fine Art Gallery">Harlowe Studios And Fine Art Gallery</option>';
+            original_Tenant_options_str  += '<option value="Harvard Credit Solutions">Harvard Credit Solutions</option>';
+            original_Tenant_options_str  += '<option value="Hatch LTK">Hatch LTK</option>';
+            original_Tenant_options_str  += '<option value="Heart Share First Step Preschool">Heart Share First Step Preschool</option>';
+            original_Tenant_options_str  += '<option value="Heart to Heart Home Care">Heart to Heart Home Care</option>';
+            original_Tenant_options_str  += '<option value="HeartShare Human Services Of New York">HeartShare Human Services Of New York</option>';
+            original_Tenant_options_str  += '<option value="Height Nail Salon">Height Nail Salon</option>';
+            original_Tenant_options_str  += '<option value="Heights & Hill Inc">Heights & Hill Inc</option>';
+            original_Tenant_options_str  += '<option value="Helen Keller Services for the Blind">Helen Keller Services for the Blind</option>';
+            original_Tenant_options_str  += '<option value="Helstrom International Inc">Helstrom International Inc</option>';
+            original_Tenant_options_str  += '<option value="Hibachi King Express">Hibachi King Express</option>';
+            original_Tenant_options_str  += '<option value="Hope Program">Hope Program</option>';
+            original_Tenant_options_str  += '<option value="Hospital League 1199 Training & Upgrading Fund">Hospital League 1199 Training & Upgrading Fund</option>';
+            original_Tenant_options_str  += '<option value="Hotel Indigo">Hotel Indigo</option>';
+            original_Tenant_options_str  += '<option value="Iannucci & Ewers">Iannucci & Ewers</option>';
+            original_Tenant_options_str  += '<option value="Ihop">Ihop</option>';
+            original_Tenant_options_str  += '<option value="Ilovekickboxing">Ilovekickboxing</option>';
+            original_Tenant_options_str  += '<option value="Independence Care System">Independence Care System</option>';
+            original_Tenant_options_str  += '<option value="International Charter School Of New York City">International Charter School Of New York City</option>';
+            original_Tenant_options_str  += '<option value="Island Federal Credit Union">Island Federal Credit Union</option>';
+            original_Tenant_options_str  += '<option value="J.W. Mays, Inc.">J.W. Mays, Inc.</option>';
+            original_Tenant_options_str  += '<option value="JPMorgan Chase">JPMorgan Chase</option>';
+            original_Tenant_options_str  += '<option value="Jack Jaffa & Associates">Jack Jaffa & Associates</option>';
+            original_Tenant_options_str  += '<option value="Jackson Hewitt Tax Service">Jackson Hewitt Tax Service</option>';
+            original_Tenant_options_str  += '<option value="James Pantzis Pc Cpa">James Pantzis Pc Cpa</option>';
+            original_Tenant_options_str  += '<option value="Jegede Joy">Jegede Joy</option>';
+            original_Tenant_options_str  += '<option value="Jewish Child Care Association">Jewish Child Care Association</option>';
+            original_Tenant_options_str  += '<option value="Job Corps">Job Corps</option>';
+            original_Tenant_options_str  += '<option value="Johnson Gourmet Deli & Grill">Johnson Gourmet Deli & Grill</option>';
+            original_Tenant_options_str  += '<option value="Journeys">Journeys</option>';
+            original_Tenant_options_str  += '<option value="Junior&apos;s Restaurant and Bakery">Junior&apos;s Restaurant and Bakery</option>';
+            original_Tenant_options_str  += '<option value="Juniors Cheesecake">Juniors Cheesecake</option>';
+            original_Tenant_options_str  += '<option value="Ketter Michael">Ketter Michael</option>';
+            original_Tenant_options_str  += '<option value="Kfc">Kfc</option>';
+            original_Tenant_options_str  += '<option value="Kimoto Rooftop">Kimoto Rooftop</option>';
+            original_Tenant_options_str  += '<option value="Korilla Bbq">Korilla Bbq</option>';
+            original_Tenant_options_str  += '<option value="Kovert Creative">Kovert Creative</option>';
+            original_Tenant_options_str  += '<option value="Kung Fu Tea">Kung Fu Tea</option>';
+            original_Tenant_options_str  += '<option value="L.K Comstock">L.K Comstock</option>';
+            original_Tenant_options_str  += '<option value="LTK Engineering Services">LTK Engineering Services</option>';
+            original_Tenant_options_str  += '<option value="Lasertone">Lasertone</option>';
+            original_Tenant_options_str  += '<option value="Legal Services Nyc Brooklyn">Legal Services Nyc Brooklyn</option>';
+            original_Tenant_options_str  += '<option value="Lenco Diagnostic Laboratory">Lenco Diagnostic Laboratory</option>';
+            original_Tenant_options_str  += '<option value="Lend Lease Construction">Lend Lease Construction</option>';
+            original_Tenant_options_str  += '<option value="Lenox Hill Radiology">Lenox Hill Radiology</option>';
+            original_Tenant_options_str  += '<option value="Lenscrafters">Lenscrafters</option>';
+            original_Tenant_options_str  += '<option value="LifeStance Health, Inc.">LifeStance Health, Inc.</option>';
+            original_Tenant_options_str  += '<option value="Likkle More Jerk">Likkle More Jerk</option>';
+            original_Tenant_options_str  += '<option value="Lins Yummy Taco Inc">Lins Yummy Taco Inc</option>';
+            original_Tenant_options_str  += '<option value="Lis-Translations Inc">Lis-Translations Inc</option>';
+            original_Tenant_options_str  += '<option value="Little Giants">Little Giants</option>';
+            original_Tenant_options_str  += '<option value="Lpte Gold Llc">Lpte Gold Llc</option>';
+            original_Tenant_options_str  += '<option value="Lucianos">Lucianos</option>';
+            original_Tenant_options_str  += '<option value="MS Foundation for Women">MS Foundation for Women</option>';
+            original_Tenant_options_str  += '<option value="Mac">Mac</option>';
+            original_Tenant_options_str  += '<option value="Mac Gym">Mac Gym</option>';
+            original_Tenant_options_str  += '<option value="Macy&apos;s">Macy&apos;s</option>';
+            original_Tenant_options_str  += '<option value="Mag News Stand Corp">Mag News Stand Corp</option>';
+            original_Tenant_options_str  += '<option value="Magellan Health">Magellan Health</option>';
+            original_Tenant_options_str  += '<option value="MakerBot">MakerBot</option>';
+            original_Tenant_options_str  += '<option value="Marcus & Millichap">Marcus & Millichap</option>';
+            original_Tenant_options_str  += '<option value="Marriott Hotel - Brooklyn Bridge">Marriott Hotel - Brooklyn Bridge</option>';
+            original_Tenant_options_str  += '<option value="Mccullough Allison">Mccullough Allison</option>';
+            original_Tenant_options_str  += '<option value="Mcdonald&apos;s">Mcdonald&apos;s</option>';
+            original_Tenant_options_str  += '<option value="Mckelvy Tiffany">Mckelvy Tiffany</option>';
+            original_Tenant_options_str  += '<option value="Mediterranean Grill">Mediterranean Grill</option>';
+            original_Tenant_options_str  += '<option value="Medtech Management Inc.">Medtech Management Inc.</option>';
+            original_Tenant_options_str  += '<option value="MetLife Services & Solutions">MetLife Services & Solutions</option>';
+            original_Tenant_options_str  += '<option value="Metro Community Health Centers">Metro Community Health Centers</option>';
+            original_Tenant_options_str  += '<option value="Metro Drafting & Design LTD">Metro Drafting & Design LTD</option>';
+            original_Tenant_options_str  += '<option value="MetroPlus Health">MetroPlus Health</option>';
+            original_Tenant_options_str  += '<option value="Metropolitan Dental Association">Metropolitan Dental Association</option>';
+            original_Tenant_options_str  += '<option value="Metropolitan Transportation Authority (MTA)">Metropolitan Transportation Authority (MTA)</option>';
+            original_Tenant_options_str  += '<option value="Metrotech Bid">Metrotech Bid</option>';
+            original_Tenant_options_str  += '<option value="Mic Women&apos;s Health Service">Mic Women&apos;s Health Service</option>';
+            original_Tenant_options_str  += '<option value="Midtown Funding Corporation">Midtown Funding Corporation</option>';
+            original_Tenant_options_str  += '<option value="Minnie And Camilla">Minnie And Camilla</option>';
+            original_Tenant_options_str  += '<option value="Morgan & Morgan">Morgan & Morgan</option>';
+            original_Tenant_options_str  += '<option value="Mortgage Market Resources">Mortgage Market Resources</option>';
+            original_Tenant_options_str  += '<option value="Motorola Solutions">Motorola Solutions</option>';
+            original_Tenant_options_str  += '<option value="Municipal Credit Union">Municipal Credit Union</option>';
+            original_Tenant_options_str  += '<option value="Mutual Housing Association Of New York Inc">Mutual Housing Association Of New York Inc</option>';
+            original_Tenant_options_str  += '<option value="NADAP">NADAP</option>';
+            original_Tenant_options_str  += '<option value="NY Beauty Suites">NY Beauty Suites</option>';
+            original_Tenant_options_str  += '<option value="NYC Board of Elections">NYC Board of Elections</option>';
+            original_Tenant_options_str  += '<option value="NYC Civil Court">NYC Civil Court</option>';
+            original_Tenant_options_str  += '<option value="NYC Department of Environmental Protection (DEP)">NYC Department of Environmental Protection (DEP)</option>';
+            original_Tenant_options_str  += '<option value="NYC Dept. of Citywide Administrative Services (DCAS)">NYC Dept. of Citywide Administrative Services (DCAS)</option>';
+            original_Tenant_options_str  += '<option value="NYC Dept. of Education (DOE)">NYC Dept. of Education (DOE)</option>';
+            original_Tenant_options_str  += '<option value="NYC Dept. of Health and Mental Hygiene">NYC Dept. of Health and Mental Hygiene</option>';
+            original_Tenant_options_str  += '<option value="NYC Dept. of Human Resources Administration">NYC Dept. of Human Resources Administration</option>';
+            original_Tenant_options_str  += '<option value="NYC Dept. of Probation">NYC Dept. of Probation</option>';
+            original_Tenant_options_str  += '<option value="NYC Dept. of Small Business Sevices (Workforce)">NYC Dept. of Small Business Sevices (Workforce)</option>';
+            original_Tenant_options_str  += '<option value="NYC Dept. of Transportation (DOT)">NYC Dept. of Transportation (DOT)</option>';
+            original_Tenant_options_str  += '<option value="NYC Employees Retirement System (NYCERS)">NYC Employees Retirement System (NYCERS)</option>';
+            original_Tenant_options_str  += '<option value="NYC Fire Dept. (NYFD)">NYC Fire Dept. (NYFD)</option>';
+            original_Tenant_options_str  += '<option value="NYC Health & Hospitals">NYC Health & Hospitals</option>';
+            original_Tenant_options_str  += '<option value="NYC Law Dept.">NYC Law Dept.</option>';
+            original_Tenant_options_str  += '<option value="NYC Office of Administrative Trials and Hearings (OATH)">NYC Office of Administrative Trials and Hearings (OATH)</option>';
+            original_Tenant_options_str  += '<option value="NYC Office of Court Administration">NYC Office of Court Administration</option>';
+            original_Tenant_options_str  += '<option value="NYC Office of Emergency Management">NYC Office of Emergency Management</option>';
+            original_Tenant_options_str  += '<option value="NYC Office of Technology and Innovation (OTI aka DoITT)">NYC Office of Technology and Innovation (OTI aka DoITT)</option>';
+            original_Tenant_options_str  += '<option value="NYC Police Dept. (NYPD)">NYC Police Dept. (NYPD)</option>';
+            original_Tenant_options_str  += '<option value="NYC Police Dept. (NYPD) - 911 Call Center">NYC Police Dept. (NYPD) - 911 Call Center</option>';
+            original_Tenant_options_str  += '<option value="NYC School Construction Authority">NYC School Construction Authority</option>';
+            original_Tenant_options_str  += '<option value="NYC Seed">NYC Seed</option>';
+            original_Tenant_options_str  += '<option value="NYS Dept. of Labor">NYS Dept. of Labor</option>';
+            original_Tenant_options_str  += '<option value="NYS Dept. of Taxation and Finance">NYS Dept. of Taxation and Finance</option>';
+            original_Tenant_options_str  += '<option value="NYS Supreme Court">NYS Supreme Court</option>';
+            original_Tenant_options_str  += '<option value="NYS Supreme Court, Appellate Division">NYS Supreme Court, Appellate Division</option>';
+            original_Tenant_options_str  += '<option value="NYU - Tandon School of Engineering">NYU - Tandon School of Engineering</option>';
+            original_Tenant_options_str  += '<option value="Nature&apos;s Lane Florist">Nature&apos;s Lane Florist</option>';
+            original_Tenant_options_str  += '<option value="Nevins Deli & Grill">Nevins Deli & Grill</option>';
+            original_Tenant_options_str  += '<option value="Nevins Drugs Inc">Nevins Drugs Inc</option>';
+            original_Tenant_options_str  += '<option value="New Apollo Diner">New Apollo Diner</option>';
+            original_Tenant_options_str  += '<option value="New Apollo Restaurant & Pizzeria">New Apollo Restaurant & Pizzeria</option>';
+            original_Tenant_options_str  += '<option value="New Destiny Dimensions Unlimited Llc">New Destiny Dimensions Unlimited Llc</option>';
+            original_Tenant_options_str  += '<option value="New York Communities For Change Inc">New York Communities For Change Inc</option>';
+            original_Tenant_options_str  += '<option value="New York Foundling">New York Foundling</option>';
+            original_Tenant_options_str  += '<option value="New York State Supreme Court Library Brooklyn">New York State Supreme Court Library Brooklyn</option>';
+            original_Tenant_options_str  += '<option value="New York Transit Museum">New York Transit Museum</option>';
+            original_Tenant_options_str  += '<option value="Njn Beauty Supply">Njn Beauty Supply</option>';
+            original_Tenant_options_str  += '<option value="Nordstrom Rack">Nordstrom Rack</option>';
+            original_Tenant_options_str  += '<option value="Northwell Health">Northwell Health</option>';
+            original_Tenant_options_str  += '<option value="Nursing Department">Nursing Department</option>';
+            original_Tenant_options_str  += '<option value="Nyc College Of Tech Bookstore">Nyc College Of Tech Bookstore</option>';
+            original_Tenant_options_str  += '<option value="Nyp Holdings Inc">Nyp Holdings Inc</option>';
+            original_Tenant_options_str  += '<option value="Off Price Fashion Outlet">Off Price Fashion Outlet</option>';
+            original_Tenant_options_str  += '<option value="Oland Electric Contractors">Oland Electric Contractors</option>';
+            original_Tenant_options_str  += '<option value="Old Navy">Old Navy</option>';
+            original_Tenant_options_str  += '<option value="Orange Downtown Deli II">Orange Downtown Deli II</option>';
+            original_Tenant_options_str  += '<option value="Orchard Workspace by JLL">Orchard Workspace by JLL</option>';
+            original_Tenant_options_str  += '<option value="Oscar Health">Oscar Health</option>';
+            original_Tenant_options_str  += '<option value="Othmer Hall">Othmer Hall</option>';
+            original_Tenant_options_str  += '<option value="Panarama Electronics Inc">Panarama Electronics Inc</option>';
+            original_Tenant_options_str  += '<option value="Panda Express">Panda Express</option>';
+            original_Tenant_options_str  += '<option value="Panera Bread">Panera Bread</option>';
+            original_Tenant_options_str  += '<option value="Papa John&apos;s Pizza">Papa John&apos;s Pizza</option>';
+            original_Tenant_options_str  += '<option value="Park Right Corporation">Park Right Corporation</option>';
+            original_Tenant_options_str  += '<option value="Parking Systems Plus">Parking Systems Plus</option>';
+            original_Tenant_options_str  += '<option value="Paycom">Paycom</option>';
+            original_Tenant_options_str  += '<option value="Penda Aiken Inc">Penda Aiken Inc</option>';
+            original_Tenant_options_str  += '<option value="Physio Logic">Physio Logic</option>';
+            original_Tenant_options_str  += '<option value="Pineapple Street Media">Pineapple Street Media</option>';
+            original_Tenant_options_str  += '<option value="Planet Fitness">Planet Fitness</option>';
+            original_Tenant_options_str  += '<option value="Planned Parenthood">Planned Parenthood</option>';
+            original_Tenant_options_str  += '<option value="Poison Lady Inc">Poison Lady Inc</option>';
+            original_Tenant_options_str  += '<option value="Preferred Health Partners">Preferred Health Partners</option>';
+            original_Tenant_options_str  += '<option value="Pret A Manger">Pret A Manger</option>';
+            original_Tenant_options_str  += '<option value="Prime Doors">Prime Doors</option>';
+            original_Tenant_options_str  += '<option value="Prolific Interactive">Prolific Interactive</option>';
+            original_Tenant_options_str  += '<option value="Prometric Inc. ">Prometric Inc. </option>';
+            original_Tenant_options_str  += '<option value="Propark America Llc">Propark America Llc</option>';
+            original_Tenant_options_str  += '<option value="Propel">Propel</option>';
+            original_Tenant_options_str  += '<option value="Prospect Schools">Prospect Schools</option>';
+            original_Tenant_options_str  += '<option value="Pryon">Pryon</option>';
+            original_Tenant_options_str  += '<option value="Randolph Beer">Randolph Beer</option>';
+            original_Tenant_options_str  += '<option value="Raymour & Flanigan">Raymour & Flanigan</option>';
+            original_Tenant_options_str  += '<option value="Registrar">Registrar</option>';
+            original_Tenant_options_str  += '<option value="Reproductive Medicine Associates">Reproductive Medicine Associates</option>';
+            original_Tenant_options_str  += '<option value="Retro Metro Optical">Retro Metro Optical</option>';
+            original_Tenant_options_str  += '<option value="SCO Family Services">SCO Family Services</option>';
+            original_Tenant_options_str  += '<option value="SO-IL Office Ltd.">SO-IL Office Ltd.</option>';
+            original_Tenant_options_str  += '<option value="SP Plus">SP Plus</option>';
+            original_Tenant_options_str  += '<option value="Samaritan Services">Samaritan Services</option>';
+            original_Tenant_options_str  += '<option value="Schlesinger Kaitlyn">Schlesinger Kaitlyn</option>';
+            original_Tenant_options_str  += '<option value="Schneps Media">Schneps Media</option>';
+            original_Tenant_options_str  += '<option value="Sco Family Of Service">Sco Family Of Service</option>';
+            original_Tenant_options_str  += '<option value="Score">Score</option>';
+            original_Tenant_options_str  += '<option value="Senior Whole Health">Senior Whole Health</option>';
+            original_Tenant_options_str  += '<option value="Shake Shack">Shake Shack</option>';
+            original_Tenant_options_str  += '<option value="Sheraton - Brooklyn">Sheraton - Brooklyn</option>';
+            original_Tenant_options_str  += '<option value="Skin & Hyde Inc">Skin & Hyde Inc</option>';
+            original_Tenant_options_str  += '<option value="Skkn+">Skkn+</option>';
+            original_Tenant_options_str  += '<option value="Slate Magazine ">Slate Magazine </option>';
+            original_Tenant_options_str  += '<option value="Smith Express Food Corporation">Smith Express Food Corporation</option>';
+            original_Tenant_options_str  += '<option value="Socapa Arts">Socapa Arts</option>';
+            original_Tenant_options_str  += '<option value="Social Apparel">Social Apparel</option>';
+            original_Tenant_options_str  += '<option value="Soft Touch Newstand">Soft Touch Newstand</option>';
+            original_Tenant_options_str  += '<option value="Solil Management Corporation">Solil Management Corporation</option>';
+            original_Tenant_options_str  += '<option value="Spaces">Spaces</option>';
+            original_Tenant_options_str  += '<option value="Spanish Speaking Elderly Council">Spanish Speaking Elderly Council</option>';
+            original_Tenant_options_str  += '<option value="St Christopher Ottilie">St Christopher Ottilie</option>';
+            original_Tenant_options_str  += '<option value="St Francis College">St Francis College</option>';
+            original_Tenant_options_str  += '<option value="Starbucks">Starbucks</option>';
+            original_Tenant_options_str  += '<option value="Stay Well Health Medical Center PC">Stay Well Health Medical Center PC</option>';
+            original_Tenant_options_str  += '<option value="Steve Madden">Steve Madden</option>';
+            original_Tenant_options_str  += '<option value="Subway">Subway</option>';
+            original_Tenant_options_str  += '<option value="Suleckinc New York Llc">Suleckinc New York Llc</option>';
+            original_Tenant_options_str  += '<option value="T-mobile">T-mobile</option>';
+            original_Tenant_options_str  += '<option value="Talisman & Delorenz">Talisman & Delorenz</option>';
+            original_Tenant_options_str  += '<option value="Tangerine Hot Power Yoga">Tangerine Hot Power Yoga</option>';
+            original_Tenant_options_str  += '<option value="Target">Target</option>';
+            original_Tenant_options_str  += '<option value="Tata America International Corporation">Tata America International Corporation</option>';
+            original_Tenant_options_str  += '<option value="The Brooklyn Bridge Child Development Center">The Brooklyn Bridge Child Development Center</option>';
+            original_Tenant_options_str  += '<option value="The Brooklyn Chamber of Commerce">The Brooklyn Chamber of Commerce</option>';
+            original_Tenant_options_str  += '<option value="The Brooklyn Tabernacle">The Brooklyn Tabernacle</option>';
+            original_Tenant_options_str  += '<option value="The Children&apos;s Place">The Children&apos;s Place</option>';
+            original_Tenant_options_str  += '<option value="The Gentleman&apos;s Factory">The Gentleman&apos;s Factory</option>';
+            original_Tenant_options_str  += '<option value="The JAR Group">The JAR Group</option>';
+            original_Tenant_options_str  += '<option value="The Recurse Center">The Recurse Center</option>';
+            original_Tenant_options_str  += '<option value="The Revenue Entertainment Studios Corp">The Revenue Entertainment Studios Corp</option>';
+            original_Tenant_options_str  += '<option value="The Ups Store">The Ups Store</option>';
+            original_Tenant_options_str  += '<option value="Three In One Fast Food Inc">Three In One Fast Food Inc</option>';
+            original_Tenant_options_str  += '<option value="Tillary Street Womens Shelter">Tillary Street Womens Shelter</option>';
+            original_Tenant_options_str  += '<option value="Tio Pio Corporation">Tio Pio Corporation</option>';
+            original_Tenant_options_str  += '<option value="Tio Pio Restaurant">Tio Pio Restaurant</option>';
+            original_Tenant_options_str  += '<option value="Tj Maxx">Tj Maxx</option>';
+            original_Tenant_options_str  += '<option value="Tony Luke&apos;s">Tony Luke&apos;s</option>';
+            original_Tenant_options_str  += '<option value="Trader Joe&apos;s">Trader Joe&apos;s</option>';
+            original_Tenant_options_str  += '<option value="Tri Star Building Supplies Inc">Tri Star Building Supplies Inc</option>';
+            original_Tenant_options_str  += '<option value="Trophy World Inc">Trophy World Inc</option>';
+            original_Tenant_options_str  += '<option value="US Attorney&apos;s Office Eastern District of New York">US Attorney&apos;s Office Eastern District of New York</option>';
+            original_Tenant_options_str  += '<option value="US Citizenship and Immigration Services">US Citizenship and Immigration Services</option>';
+            original_Tenant_options_str  += '<option value="US Federation of Teachers">US Federation of Teachers</option>';
+            original_Tenant_options_str  += '<option value="US Internal Revenue Service (IRS)">US Internal Revenue Service (IRS)</option>';
+            original_Tenant_options_str  += '<option value="US Internal Revenue Service - Audit Office (IRS)">US Internal Revenue Service - Audit Office (IRS)</option>';
+            original_Tenant_options_str  += '<option value="US Post Office, US Bankrupcty Court, US Attorney&apos;s Office Eastern District of New York">US Post Office, US Bankrupcty Court, US Attorney&apos;s Office Eastern District of New York</option>';
+            original_Tenant_options_str  += '<option value="US Secret Service">US Secret Service</option>';
+            original_Tenant_options_str  += '<option value="US Veterans Affairs">US Veterans Affairs</option>';
+            original_Tenant_options_str  += '<option value="Underground By Journeys">Underground By Journeys</option>';
+            original_Tenant_options_str  += '<option value="Uni K Wax Studio">Uni K Wax Studio</option>';
+            original_Tenant_options_str  += '<option value="UniWorld Group">UniWorld Group</option>';
+            original_Tenant_options_str  += '<option value="United Household Distributors Inc">United Household Distributors Inc</option>';
+            original_Tenant_options_str  += '<option value="Unity Electric Co">Unity Electric Co</option>';
+            original_Tenant_options_str  += '<option value="University Settlement">University Settlement</option>';
+            original_Tenant_options_str  += '<option value="Us Auto School">Us Auto School</option>';
+            original_Tenant_options_str  += '<option value="Us Bankruptcy Court">Us Bankruptcy Court</option>';
+            original_Tenant_options_str  += '<option value="Us Capitol Holding Corporation">Us Capitol Holding Corporation</option>';
+            original_Tenant_options_str  += '<option value="Value Furniture Warehouse">Value Furniture Warehouse</option>';
+            original_Tenant_options_str  += '<option value="Venue Work Space Consultants Inc">Venue Work Space Consultants Inc</option>';
+            original_Tenant_options_str  += '<option value="Vishwa News Inc">Vishwa News Inc</option>';
+            original_Tenant_options_str  += '<option value="Walnut Ridge">Walnut Ridge</option>';
+            original_Tenant_options_str  += '<option value="Watermatic">Watermatic</option>';
+            original_Tenant_options_str  += '<option value="WeWork">WeWork</option>';
+            original_Tenant_options_str  += '<option value="Western Union">Western Union</option>';
+            original_Tenant_options_str  += '<option value="Wild Friends Inc">Wild Friends Inc</option>';
+            original_Tenant_options_str  += '<option value="Workforce One Career Center">Workforce One Career Center</option>';
+            original_Tenant_options_str  += '<option value="Yabc">Yabc</option>';
+            original_Tenant_options_str  += '<option value="Yasar Samin">Yasar Samin</option>';
+            original_Tenant_options_str  += '<option value="Yaso Hospitality Group Llc">Yaso Hospitality Group Llc</option>';
+            original_Tenant_options_str  += '<option value="Yaso Tangbao">Yaso Tangbao</option>';
+            original_Tenant_options_str  += '<option value="Youth Justice Network">Youth Justice Network</option>';
+            original_Tenant_options_str  += '<option value="ideaMACHINE">ideaMACHINE</option>';
+            original_Tenant_options_str  += '<option value="thelab">thelab</option>';
+            sel_original_Tenant.innerHTML = original_Tenant_options_str;
+            div_original_Tenant.appendChild(sel_original_Tenant);
+            var lab_original_Tenant = document.createElement('div');
+            lab_original_Tenant.innerHTML = 'original_Tenant';
+            lab_original_Tenant.className = 'filterlabel';
+            div_original_Tenant.appendChild(lab_original_Tenant);
+            var reset_original_Tenant = document.createElement('div');
+            reset_original_Tenant.innerHTML = 'clear filter';
+            reset_original_Tenant.className = 'filterlabel';
+            reset_original_Tenant.onclick = function() {
+                var options = document.getElementById("sel_original_Tenant").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_original_Tenant.appendChild(reset_original_Tenant);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_original_BuildingName = document.createElement('div');
+            div_original_BuildingName.id = "div_original_BuildingName";
+            div_original_BuildingName.className= "filterselect";
+            document.getElementById("menu").appendChild(div_original_BuildingName);
+            sel_original_BuildingName = document.createElement('select');
+            sel_original_BuildingName.multiple = true;
+            sel_original_BuildingName.size = 7;
+            sel_original_BuildingName.id = "sel_original_BuildingName";
+            var original_BuildingName_options_str = "<option value='' unselected></option>";
+            sel_original_BuildingName.onchange = function(){filterFunc()};
+            original_BuildingName_options_str  += '<option value="NULL">NULL</option>';
+            original_BuildingName_options_str  += '<option value="Brooklyn Commons">Brooklyn Commons</option>';
+            original_BuildingName_options_str  += '<option value="Brooklyn Rennaissance Plaza">Brooklyn Rennaissance Plaza</option>';
+            original_BuildingName_options_str  += '<option value="Clocktower Building">Clocktower Building</option>';
+            original_BuildingName_options_str  += '<option value="The Howard">The Howard</option>';
+            original_BuildingName_options_str  += '<option value="The Wheeler Building">The Wheeler Building</option>';
+            original_BuildingName_options_str  += '<option value="Transportation Building">Transportation Building</option>';
+            sel_original_BuildingName.innerHTML = original_BuildingName_options_str;
+            div_original_BuildingName.appendChild(sel_original_BuildingName);
+            var lab_original_BuildingName = document.createElement('div');
+            lab_original_BuildingName.innerHTML = 'original_Building Name';
+            lab_original_BuildingName.className = 'filterlabel';
+            div_original_BuildingName.appendChild(lab_original_BuildingName);
+            var reset_original_BuildingName = document.createElement('div');
+            reset_original_BuildingName.innerHTML = 'clear filter';
+            reset_original_BuildingName.className = 'filterlabel';
+            reset_original_BuildingName.onclick = function() {
+                var options = document.getElementById("sel_original_BuildingName").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_original_BuildingName.appendChild(reset_original_BuildingName);
+        resetLabels([layer_DowntownBrooklynRDS_1]);
+        map.on("zoomend", function(){
+            resetLabels([layer_DowntownBrooklynRDS_1]);
+        });
+        map.on("layeradd", function(){
+            resetLabels([layer_DowntownBrooklynRDS_1]);
+        });
+        map.on("layerremove", function(){
+            resetLabels([layer_DowntownBrooklynRDS_1]);
+        });
+        </script>
+    </body>
+</html>
